@@ -1,4 +1,4 @@
-# Kalendly
+# Bookify
 
 A Linear-style, single-tenant scheduling app — your own self-hosted alternative to Calendly.
 
@@ -26,8 +26,8 @@ Pick from your event types, share a public booking page, and let guests grab a s
 ## Local setup
 
 ```bash
-git clone https://github.com/albertshiney/kalendly_public.git kalendly
-cd kalendly
+git clone https://github.com/MirajStudio/bookify.git bookify
+cd bookify
 npm install
 cp .env.example .env.local
 # fill in the values in .env.local — see below
@@ -42,7 +42,7 @@ All seven are required (see `lib/env.ts`):
 
 | Var | What | Example |
 |---|---|---|
-| `MONGODB_URI` | Mongo connection string | `mongodb+srv://user:pass@cluster.mongodb.net/kalendly` |
+| `MONGODB_URI` | Mongo connection string | `mongodb+srv://user:pass@cluster.mongodb.net/bookify` |
 | `NEXTAUTH_SECRET` | JWT signing secret | `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | Origin used by NextAuth | `http://localhost:3000` |
 | `ADMIN_EMAIL` | The single admin's email | `you@example.com` |
@@ -54,7 +54,7 @@ All seven are required (see `lib/env.ts`):
 
 1. Import the repo on Vercel.
 2. Add all seven env vars under **Project → Settings → Environment Variables** (Production + Preview).
-3. Set `NEXTAUTH_URL` and `APP_URL` to your final domain (e.g. `https://kalendly.example.com`).
+3. Set `NEXTAUTH_URL` and `APP_URL` to your final domain (e.g. `https://bookify.example.com`).
 4. Redeploy.
 
 The build is tolerant when env vars are missing (won't fail the deploy), but the running site will throw on every request until they're set — set them, then redeploy.
