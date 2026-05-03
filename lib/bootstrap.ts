@@ -1,6 +1,6 @@
-import { ObjectId } from "mongodb";
 import { users, availability, ensureIndexes } from "./collections";
 import { env } from "./env";
+import { randomUUID } from "crypto";
 
 let bootstrapped = false;
 
@@ -8,23 +8,22 @@ export async function bootstrap() {
   if (bootstrapped) return;
   await ensureIndexes();
 
-  const userCol = await users();
-  const existing = await userCol.findOne({ email: env().ADMIN_EMAIL });
+  const existing = await users.findOne({ email: env().ADMIN_EMAIL });
   if (!existing) {
-    const userId = new ObjectId();
-    await userCol.insertOne({
-      _id: userId,
+    const userId = randomUUID();
+
+    await users.insertOne({
+      id: userId,
       email: env().ADMIN_EMAIL,
       name: "Admin",
       bio: null,
       defaultTimezone: "UTC",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
 
-    const availCol = await availability();
-    await availCol.insertOne({
-      _id: new ObjectId(),
+    await availability.insertOne({
+      id: randomUUID(),
       userId,
       timezone: "UTC",
       weeklyHours: [
@@ -37,8 +36,8 @@ export async function bootstrap() {
         { dayOfWeek: 6, intervals: [] },
       ],
       dateOverrides: [],
-      updatedAt: new Date(),
-    });
+      updatedAt: new Date().toISOString(),
+    } as any);
   }
 
   bootstrapped = true;
