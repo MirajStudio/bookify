@@ -24,6 +24,7 @@ export function BookingsTable({ bookings }: { bookings: BookingDoc[] }) {
       </div>
     );
   }
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <ul className="divide-y divide-border">
@@ -32,7 +33,7 @@ export function BookingsTable({ bookings }: { bookings: BookingDoc[] }) {
           const tz = b.guestTimezone || "UTC";
           return (
             <li
-              key={b._id.toString()}
+              key={b.id}
               className="group flex items-center justify-between gap-4 px-4 py-3 transition-colors duration-150 hover:bg-surface-hover"
             >
               <div className="flex min-w-0 items-center gap-3">
