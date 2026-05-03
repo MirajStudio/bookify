@@ -7,21 +7,31 @@ import type {
   BookingDoc,
 } from "./types";
 
+// Helper: apply match filters, using .is(k, null) for null values
+function applyMatch(q: any, match: Record<string, unknown>): any {
+  for (const [k, v] of Object.entries(match)) {
+    if (v === null || v === undefined) {
+      q = q.is(k, null);
+    } else {
+      q = q.eq(k, v);
+    }
+  }
+  return q;
+}
+
 // ── users ────────────────────────────────────────────────────────────────────
 
 export const users = {
   findOne: async (match: Partial<UserDoc>) => {
-    let q = db.from("users").select("*");
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
-    const { data } = await q.single();
+    const q = applyMatch(db.from("users").select("*"), match as Record<string, unknown>);
+    const { data } = await q.maybeSingle();
     return data as UserDoc | null;
   },
   insertOne: async (doc: UserDoc) => {
     await db.from("users").insert(doc);
   },
   updateOne: async (match: Partial<UserDoc>, update: Partial<UserDoc>) => {
-    let q = db.from("users").update(update);
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+    const q = applyMatch(db.from("users").update(update), match as Record<string, unknown>);
     await q;
   },
 };
@@ -30,8 +40,7 @@ export const users = {
 
 export const integrations = {
   findOne: async (match: Partial<IntegrationDoc>) => {
-    let q = db.from("integrations").select("*");
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+    const q = applyMatch(db.from("integrations").select("*"), match as Record<string, unknown>);
     const { data } = await q.maybeSingle();
     return data as IntegrationDoc | null;
   },
@@ -44,14 +53,12 @@ export const integrations = {
       const merged = { ...match, ...update };
       await db.from("integrations").upsert(merged);
     } else {
-      let q = db.from("integrations").update(update);
-      for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+      const q = applyMatch(db.from("integrations").update(update), match as Record<string, unknown>);
       await q;
     }
   },
   deleteOne: async (match: Partial<IntegrationDoc>) => {
-    let q = db.from("integrations").delete();
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+    const q = applyMatch(db.from("integrations").delete(), match as Record<string, unknown>);
     await q;
   },
 };
@@ -60,8 +67,7 @@ export const integrations = {
 
 export const eventTypes = {
   findOne: async (match: Partial<EventTypeDoc>) => {
-    let q = db.from("event_types").select("*");
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+    const q = applyMatch(db.from("event_types").select("*"), match as Record<string, unknown>);
     const { data } = await q.maybeSingle();
     return data as EventTypeDoc | null;
   },
@@ -83,13 +89,11 @@ export const eventTypes = {
     await db.from("event_types").insert(doc);
   },
   updateOne: async (match: Partial<EventTypeDoc>, update: Partial<EventTypeDoc>) => {
-    let q = db.from("event_types").update(update);
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+    const q = applyMatch(db.from("event_types").update(update), match as Record<string, unknown>);
     await q;
   },
   deleteOne: async (match: Partial<EventTypeDoc>) => {
-    let q = db.from("event_types").delete();
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+    const q = applyMatch(db.from("event_types").delete(), match as Record<string, unknown>);
     await q;
   },
 };
@@ -98,8 +102,7 @@ export const eventTypes = {
 
 export const availability = {
   findOne: async (match: Partial<AvailabilityDoc>) => {
-    let q = db.from("availability").select("*");
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+    const q = applyMatch(db.from("availability").select("*"), match as Record<string, unknown>);
     const { data } = await q.maybeSingle();
     return data as AvailabilityDoc | null;
   },
@@ -115,8 +118,7 @@ export const availability = {
       const merged = { ...match, ...update };
       await db.from("availability").upsert(merged);
     } else {
-      let q = db.from("availability").update(update);
-      for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+      const q = applyMatch(db.from("availability").update(update), match as Record<string, unknown>);
       await q;
     }
   },
@@ -126,8 +128,7 @@ export const availability = {
 
 export const bookings = {
   findOne: async (match: Partial<BookingDoc>) => {
-    let q = db.from("bookings").select("*");
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+    const q = applyMatch(db.from("bookings").select("*"), match as Record<string, unknown>);
     const { data } = await q.maybeSingle();
     return data as BookingDoc | null;
   },
@@ -136,8 +137,7 @@ export const bookings = {
     if (error) throw new Error(error.message);
   },
   updateOne: async (match: Partial<BookingDoc>, update: Partial<BookingDoc>) => {
-    let q = db.from("bookings").update(update);
-    for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+    const q = applyMatch(db.from("bookings").update(update), match as Record<string, unknown>);
     await q;
   },
   countDocuments: async (match: Record<string, unknown>) => {
@@ -145,10 +145,12 @@ export const bookings = {
     for (const [k, v] of Object.entries(match)) {
       if (typeof v === "object" && v !== null) {
         const range = v as Record<string, unknown>;
-        if (range.$gte) q = q.gte(k, range.$gte);
-        if (range.$lt) q = q.lt(k, range.$lt);
+        if (range.$gte) q = q.gte(k, range.$gte as string);
+        if (range.$lt) q = q.lt(k, range.$lt as string);
+      } else if (v === null || v === undefined) {
+        q = q.is(k, null);
       } else {
-        q = q.eq(k, v);
+        q = q.eq(k, v as string);
       }
     }
     const { count } = await q;
