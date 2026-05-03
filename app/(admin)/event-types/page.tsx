@@ -2,13 +2,15 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { Plus, ListChecks } from "lucide-react";
-import { eventTypes } from "@/lib/collections";
+import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { EventTypeCard } from "@/components/admin/EventTypeCard";
 import { env } from "@/lib/env";
+import type { EventTypeDoc } from "@/lib/types";
 
 export default async function EventTypesPage() {
-  const list = await (await eventTypes()).find().sort({ position: 1 }).toArray();
+  const { data } = await db.from("event_types").select("*").order("position", { ascending: true });
+  const list = (data ?? []) as EventTypeDoc[];
   const activeCount = list.filter((e) => e.active).length;
 
   return (
@@ -52,8 +54,8 @@ export default async function EventTypesPage() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {list.map((e) => (
             <EventTypeCard
-              key={e._id.toString()}
-              id={e._id.toString()}
+              key={e.id}
+              id={e.id}
               slug={e.slug}
               title={e.title}
               duration={e.durationMinutes}
