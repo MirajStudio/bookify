@@ -1,6 +1,5 @@
 "use server";
 
-import { ObjectId } from "mongodb";
 import { revalidatePath } from "next/cache";
 import { users } from "@/lib/collections";
 import { profileFormSchema } from "@/lib/validation";
@@ -13,9 +12,9 @@ export async function saveProfile(formData: FormData) {
     bio: formData.get("bio") ? String(formData.get("bio")) : null,
     defaultTimezone: String(formData.get("defaultTimezone") ?? "UTC"),
   });
-  await (await users()).updateOne(
-    { _id: new ObjectId(session.user.id) },
-    { $set: { ...parsed, updatedAt: new Date() } },
+  await users.updateOne(
+    { id: session.user.id },
+    { ...parsed, updatedAt: new Date().toISOString() } as any,
   );
   revalidatePath("/settings");
 }
