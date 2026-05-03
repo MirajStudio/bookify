@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 const schema = z.object({
-  MONGODB_URI: z.string().min(1),
+  SUPABASE_URL: z.string().min(1),
+SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   NEXTAUTH_SECRET: z.string().min(1),
   NEXTAUTH_URL: z.url(),
   ADMIN_EMAIL: z.email(),
