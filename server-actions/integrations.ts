@@ -1,11 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { ObjectId } from "mongodb";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { initiateGoogleConnection, getConnection, listCalendars } from "@/lib/calendar";
 import { integrations } from "@/lib/collections";
 import { env } from "@/lib/env";
+import { randomUUID } from "crypto";
 
 export async function startGoogleConnect() {
   const session = await requireAdmin();
@@ -13,24 +13,20 @@ export async function startGoogleConnect() {
   const callbackUrl = `${env().APP_URL}/api/integrations/google/callback`;
   const { redirectUrl, connectionId } = await initiateGoogleConnection(userId, callbackUrl);
 
-  await (await integrations()).updateOne(
-    { userId: new ObjectId(userId), provider: "google_calendar" },
+  await integrations.updateOne(
+    { userId, provider: "google_calendar" },
     {
-      $setOnInsert: {
-        _id: new ObjectId(),
-        userId: new ObjectId(userId),
-        provider: "google_calendar",
-        composioUserId: userId,
-        connectedAt: new Date(),
-        calendarSummary: "",
-      },
-      $set: {
-        composioConnectionId: connectionId,
-        status: "INITIATED" as const,
-        calendarId: "primary",
-        lastCheckedAt: new Date(),
-      },
-    },
+      id: randomUUID(),
+      userId,
+      provider: "google_calendar",
+      composioUserId: userId,
+      composioConnectionId: connectionId,
+      status: "INITIATED",
+      calendarId: "primary",
+      calendarSummary: "",
+      connectedAt: new Date().toISOString(),
+      lastCheckedAt: new Date().toISOString(),
+    } as any,
     { upsert: true },
   );
 
@@ -39,16 +35,13 @@ export async function startGoogleConnect() {
 
 export async function setActiveCalendar(calendarId: string, calendarSummary: string) {
   const session = await requireAdmin();
-  await (await integrations()).updateOne(
-    { userId: new ObjectId(session.user.id), provider: "google_calendar" },
-    { $set: { calendarId, calendarSummary, lastCheckedAt: new Date() } },
+  await integrations.updateOne(
+    { userId: session.user.id, provider: "google_calendar" },
+    { calendarId, calendarSummary, lastCheckedAt: new Date().toISOString() } as any,
   );
 }
 
 export async function disconnectGoogle() {
   const session = await requireAdmin();
-  await (await integrations()).deleteOne({
-    userId: new ObjectId(session.user.id),
-    provider: "google_calendar",
-  });
+  await integrations.deleteOne({ userId: session.user.id, provider: "google_calendar" });
 }
