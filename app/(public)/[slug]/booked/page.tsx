@@ -19,9 +19,10 @@ export default async function BookedPage({
   const token = sp.token;
   if (!token || !isValidTokenShape(token)) notFound();
 
-  const booking = await (await bookings()).findOne({ manageToken: token, eventTypeSlug: slug });
+  const booking = await bookings.findOne({ manageToken: token, eventTypeSlug: slug });
   if (!booking) notFound();
-  const evt = await (await eventTypes()).findOne({ _id: booking.eventTypeId });
+
+  const evt = await eventTypes.findOne({ id: booking.eventTypeId });
   if (!evt) notFound();
 
   const dt = new Date(booking.startUtc);
@@ -33,7 +34,6 @@ export default async function BookedPage({
       <div className="mb-12 flex items-center justify-end">
         <ThemeToggle />
       </div>
-
       <div className="text-center">
         <span className="relative inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-primary/30" />
@@ -49,7 +49,6 @@ export default async function BookedPage({
           {labelDate} · {labelTime}
         </p>
       </div>
-
       <div className="mt-10 space-y-3">
         <div className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3.5 py-3">
           <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-bg-elevated text-ink-muted">
@@ -62,7 +61,6 @@ export default async function BookedPage({
             <p className="mt-0.5 truncate text-[13px] text-ink">{booking.guestEmail}</p>
           </div>
         </div>
-
         {booking.meetLink && (
           <a
             href={booking.meetLink}
@@ -82,7 +80,6 @@ export default async function BookedPage({
           </a>
         )}
       </div>
-
       <div className="mt-auto pt-12 pb-8 text-center">
         <a
           href={`/b/${booking.manageToken}`}
