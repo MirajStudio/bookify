@@ -4,26 +4,43 @@ import Link from "next/link";
 import { ArrowRight, CalendarPlus } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { bootstrap } from "@/lib/bootstrap";
-import { bookings, integrations } from "@/lib/collections";
+import { integrations } from "@/lib/collections";
+import { db } from "@/lib/db";
 import { KpiTile } from "@/components/admin/KpiTile";
 import { Button } from "@/components/ui/button";
+import type { BookingDoc } from "@/lib/types";
 
 export default async function DashboardPage() {
   await bootstrap();
-  const col = await bookings();
+
   const now = new Date();
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - now.getDay());
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const sevenAhead = new Date(now.getTime() + 7 * 24 * 3600_000);
 
-  const [thisWeek, next7, thisMonth, upcoming, integ] = await Promise.all([
-    col.countDocuments({ status: "confirmed", startUtc: { $gte: weekStart, $lt: now } }),
-    col.countDocuments({ status: "confirmed", startUtc: { $gte: now, $lt: sevenAhead } }),
-    col.countDocuments({ status: "confirmed", startUtc: { $gte: monthStart } }),
-    col.find({ status: "confirmed", startUtc: { $gte: now } }).sort({ startUtc: 1 }).limit(6).toArray(),
-    (await integrations()).findOne({ provider: "google_calendar" }),
+  const nowIso = now.toISOString();
+  const weekStartIso = weekStart.toISOString();
+  const monthStartIso = monthStart.toISOString();
+  const sevenAheadIso = sevenAhead.toISOString();
+
+  const [thisWeekRes, next7Res, thisMonthRes, upcomingRes, integ] = await Promise.all([
+    db.from("bookings").select("*", { count: "exact", head: true })
+      .eq("status", "confirmed").gte("start_utc", weekStartIso).lt("start_utc", nowIso),
+    db.from("bookings").select("*", { count: "exact", head: true })
+      .eq("status", "confirmed").gte("start_utc", nowIso).lt("start_utc", sevenAheadIso),
+    db.from("bookings").select("*", { count: "exact", head: true })
+      .eq("status", "confirmed").gte("start_utc", monthStartIso),
+    db.from("bookings").select("*")
+      .eq("status", "confirmed").gte("start_utc", nowIso)
+      .order("start_utc", { ascending: true }).limit(6),
+    integrations.findOne({ provider: "google_calendar" }),
   ]);
+
+  const thisWeek = thisWeekRes.count ?? 0;
+  const next7 = next7Res.count ?? 0;
+  const thisMonth = thisMonthRes.count ?? 0;
+  const upcoming = (upcomingRes.data ?? []) as BookingDoc[];
 
   return (
     <div className="space-y-10">
@@ -88,7 +105,7 @@ export default async function DashboardPage() {
                 const dt = new Date(b.startUtc);
                 return (
                   <li
-                    key={b._id.toString()}
+                    key={b.id}
                     className="group flex items-center justify-between gap-4 px-4 py-3 transition-colors duration-150 hover:bg-surface-hover"
                   >
                     <div className="flex min-w-0 items-center gap-3">
