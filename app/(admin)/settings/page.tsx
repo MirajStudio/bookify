@@ -1,6 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import { ObjectId } from "mongodb";
 import { users, integrations } from "@/lib/collections";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { listCalendars } from "@/lib/calendar";
@@ -31,12 +30,9 @@ function SettingsCard({
 
 export default async function SettingsPage() {
   const session = await requireAdmin();
-  const user = await (await users()).findOne({ _id: new ObjectId(session.user.id) });
+  const user = await users.findOne({ id: session.user.id });
   if (!user) throw new Error("User missing");
-  const integ = await (await integrations()).findOne({
-    userId: user._id,
-    provider: "google_calendar",
-  });
+  const integ = await integrations.findOne({ userId: user.id, provider: "google_calendar" });
   let cals: Array<{ id: string; summary: string; primary: boolean }> = [];
   let calError: string | null = null;
   if (integ?.status === "ACTIVE") {
@@ -55,15 +51,13 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-10">
       <header className="space-y-2 border-b border-border pb-6">
-        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">
-          Account
-        </p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">Account</p>
         <h1 className="text-[28px] leading-tight tracking-[-0.02em]">Settings</h1>
       </header>
 
       <SettingsCard
         title="Appearance"
-        description="Choose how Kalendly looks to you. System matches your OS preference."
+        description="Choose how Bookify looks to you. System matches your OS preference."
       >
         <AppearanceSection />
       </SettingsCard>
@@ -93,10 +87,7 @@ export default async function SettingsPage() {
 
       <div className="border-t border-border" />
 
-      <SettingsCard
-        title="Password"
-        description="Server-side credential pinned to env."
-      >
+      <SettingsCard title="Password" description="Server-side credential pinned to env.">
         <p className="text-[13px] leading-relaxed text-ink-soft">
           Edit{" "}
           <code className="rounded bg-surface-hover px-1 py-0.5 font-mono text-[12px] text-ink">
