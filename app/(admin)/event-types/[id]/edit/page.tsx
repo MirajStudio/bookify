@@ -2,14 +2,17 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { ObjectId } from "mongodb";
 import { notFound } from "next/navigation";
 import { EventTypeForm } from "@/components/admin/EventTypeForm";
 import { eventTypes } from "@/lib/collections";
 
-export default async function EditEventType({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditEventType({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  const evt = await (await eventTypes()).findOne({ _id: new ObjectId(id) });
+  const evt = await eventTypes.findOne({ id });
   if (!evt) notFound();
 
   const initial = {
