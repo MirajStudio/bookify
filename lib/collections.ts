@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "./db";
 import type {
   UserDoc,
@@ -19,19 +20,21 @@ function applyMatch(q: any, match: Record<string, unknown>): any {
   return q;
 }
 
+const from = (table: string) => (db as any).from(table);
+
 // ── users ────────────────────────────────────────────────────────────────────
 
 export const users = {
   findOne: async (match: Partial<UserDoc>) => {
-    const q = applyMatch(db.from("users").select("*"), match as Record<string, unknown>);
+    const q = applyMatch(from("users").select("*"), match as Record<string, unknown>);
     const { data } = await q.maybeSingle();
     return data as UserDoc | null;
   },
   insertOne: async (doc: UserDoc) => {
-    await db.from("users").insert(doc);
+    await from("users").insert(doc);
   },
   updateOne: async (match: Partial<UserDoc>, update: Partial<UserDoc>) => {
-    const q = applyMatch(db.from("users").update(update), match as Record<string, unknown>);
+    const q = applyMatch(from("users").update(update), match as Record<string, unknown>);
     await q;
   },
 };
@@ -40,7 +43,7 @@ export const users = {
 
 export const integrations = {
   findOne: async (match: Partial<IntegrationDoc>) => {
-    const q = applyMatch(db.from("integrations").select("*"), match as Record<string, unknown>);
+    const q = applyMatch(from("integrations").select("*"), match as Record<string, unknown>);
     const { data } = await q.maybeSingle();
     return data as IntegrationDoc | null;
   },
@@ -50,15 +53,14 @@ export const integrations = {
     opts?: { upsert?: boolean },
   ) => {
     if (opts?.upsert) {
-      const merged = { ...match, ...update };
-      await db.from("integrations").upsert(merged);
+      await from("integrations").upsert({ ...match, ...update });
     } else {
-      const q = applyMatch(db.from("integrations").update(update), match as Record<string, unknown>);
+      const q = applyMatch(from("integrations").update(update), match as Record<string, unknown>);
       await q;
     }
   },
   deleteOne: async (match: Partial<IntegrationDoc>) => {
-    const q = applyMatch(db.from("integrations").delete(), match as Record<string, unknown>);
+    const q = applyMatch(from("integrations").delete(), match as Record<string, unknown>);
     await q;
   },
 };
@@ -67,7 +69,7 @@ export const integrations = {
 
 export const eventTypes = {
   findOne: async (match: Partial<EventTypeDoc>) => {
-    const q = applyMatch(db.from("event_types").select("*"), match as Record<string, unknown>);
+    const q = applyMatch(from("event_types").select("*"), match as Record<string, unknown>);
     const { data } = await q.maybeSingle();
     return data as EventTypeDoc | null;
   },
@@ -75,8 +77,7 @@ export const eventTypes = {
     sort: (_field: string, dir: number) => ({
       limit: (n: number) => ({
         toArray: async () => {
-          const { data } = await db
-            .from("event_types")
+          const { data } = await from("event_types")
             .select("*")
             .order("position", { ascending: dir === 1 })
             .limit(n);
@@ -86,14 +87,14 @@ export const eventTypes = {
     }),
   }),
   insertOne: async (doc: EventTypeDoc) => {
-    await db.from("event_types").insert(doc);
+    await from("event_types").insert(doc);
   },
   updateOne: async (match: Partial<EventTypeDoc>, update: Partial<EventTypeDoc>) => {
-    const q = applyMatch(db.from("event_types").update(update), match as Record<string, unknown>);
+    const q = applyMatch(from("event_types").update(update), match as Record<string, unknown>);
     await q;
   },
   deleteOne: async (match: Partial<EventTypeDoc>) => {
-    const q = applyMatch(db.from("event_types").delete(), match as Record<string, unknown>);
+    const q = applyMatch(from("event_types").delete(), match as Record<string, unknown>);
     await q;
   },
 };
@@ -102,12 +103,12 @@ export const eventTypes = {
 
 export const availability = {
   findOne: async (match: Partial<AvailabilityDoc>) => {
-    const q = applyMatch(db.from("availability").select("*"), match as Record<string, unknown>);
+    const q = applyMatch(from("availability").select("*"), match as Record<string, unknown>);
     const { data } = await q.maybeSingle();
     return data as AvailabilityDoc | null;
   },
   insertOne: async (doc: AvailabilityDoc) => {
-    await db.from("availability").insert(doc);
+    await from("availability").insert(doc);
   },
   updateOne: async (
     match: Partial<AvailabilityDoc>,
@@ -115,10 +116,9 @@ export const availability = {
     opts?: { upsert?: boolean },
   ) => {
     if (opts?.upsert) {
-      const merged = { ...match, ...update };
-      await db.from("availability").upsert(merged);
+      await from("availability").upsert({ ...match, ...update });
     } else {
-      const q = applyMatch(db.from("availability").update(update), match as Record<string, unknown>);
+      const q = applyMatch(from("availability").update(update), match as Record<string, unknown>);
       await q;
     }
   },
@@ -128,20 +128,20 @@ export const availability = {
 
 export const bookings = {
   findOne: async (match: Partial<BookingDoc>) => {
-    const q = applyMatch(db.from("bookings").select("*"), match as Record<string, unknown>);
+    const q = applyMatch(from("bookings").select("*"), match as Record<string, unknown>);
     const { data } = await q.maybeSingle();
     return data as BookingDoc | null;
   },
   insertOne: async (doc: BookingDoc) => {
-    const { error } = await db.from("bookings").insert(doc);
+    const { error } = await from("bookings").insert(doc);
     if (error) throw new Error(error.message);
   },
   updateOne: async (match: Partial<BookingDoc>, update: Partial<BookingDoc>) => {
-    const q = applyMatch(db.from("bookings").update(update), match as Record<string, unknown>);
+    const q = applyMatch(from("bookings").update(update), match as Record<string, unknown>);
     await q;
   },
   countDocuments: async (match: Record<string, unknown>) => {
-    let q = db.from("bookings").select("*", { count: "exact", head: true });
+    let q = from("bookings").select("*", { count: "exact", head: true });
     for (const [k, v] of Object.entries(match)) {
       if (typeof v === "object" && v !== null) {
         const range = v as Record<string, unknown>;
