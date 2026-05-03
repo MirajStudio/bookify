@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
-import { bookings } from "@/lib/collections";
+import { db } from "@/lib/db";
 import { BookingsTable } from "@/components/admin/BookingsTable";
+import type { BookingDoc } from "@/lib/types";
 
 const tabs = [
   { id: "upcoming", label: "Upcoming" },
@@ -16,19 +17,22 @@ export default async function BookingsPage({
 }) {
   const sp = await searchParams;
   const tab = (sp.tab ?? "upcoming") as (typeof tabs)[number]["id"];
-  const now = new Date();
-  const filter =
-    tab === "past"
-      ? { status: "confirmed" as const, startUtc: { $lt: now } }
-      : tab === "cancelled"
-        ? { status: { $in: ["cancelled", "rescheduled"] as const } }
-        : { status: "confirmed" as const, startUtc: { $gte: now } };
-  const list = await (await bookings())
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .find(filter as any)
-    .sort({ startUtc: tab === "past" ? -1 : 1 })
-    .limit(100)
-    .toArray();
+  const now = new Date().toISOString();
+
+  let query = db.from("bookings").select("*").limit(100);
+
+  if (tab === "past") {
+    query = query.eq("status", "confirmed").lt("start_utc", now).order("start_utc", { ascending: false });
+  } else if (tab === "cancelled") {
+    query = query.in("status", ["cancelled", "rescheduled"]).order("start_utc", { ascending: false });
+  } else {
+    // upcoming
+    query = query.eq("status", "confirmed").gte("start_utc", now).order("start_utc", { ascending: true });
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  const list = (data ?? []) as BookingDoc[];
 
   return (
     <div className="space-y-7">
