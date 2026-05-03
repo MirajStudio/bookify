@@ -29,7 +29,7 @@ export default async function ConfirmPage({
   const tz = sp.tz ?? "UTC";
   if (!startIso) notFound();
 
-  const evt = await (await eventTypes()).findOne({ slug, active: true });
+  const evt = await eventTypes.findOne({ slug, active: true });
   if (!evt) notFound();
 
   const dt = new Date(startIso);
