@@ -6,7 +6,7 @@ import { bootstrap } from "@/lib/bootstrap";
 import { users } from "@/lib/collections";
 
 const credentialsSchema = z.object({
-  email: z.email(),
+  email: z.string().email(),
   password: z.string().min(1),
 });
 
@@ -24,12 +24,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
         if (parsed.data.email !== env().ADMIN_EMAIL) return null;
         if (parsed.data.password !== env().ADMIN_PASSWORD) return null;
-
         await bootstrap();
-        const user = await (await users()).findOne({ email: parsed.data.email });
+        const user = await users.findOne({ email: parsed.data.email });
         if (!user) return null;
-
-        return { id: user._id.toString(), email: user.email, name: user.name };
+        return { id: user.id, email: user.email, name: user.name };
       },
     }),
   ],
