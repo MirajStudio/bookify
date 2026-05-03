@@ -1,5 +1,3 @@
-import type { ObjectId } from "mongodb";
-
 export type EventColor = "iris" | "rose" | "amber" | "sage" | "slate";
 
 export type CustomQuestion =
@@ -12,32 +10,32 @@ export type LocationSpec =
   | { type: "custom"; customText: string };
 
 export interface UserDoc {
-  _id: ObjectId;
+  id: string;
   email: string;
   name: string;
   bio: string | null;
   defaultTimezone: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ConnectionStatus = "ACTIVE" | "EXPIRED" | "FAILED" | "INACTIVE" | "INITIATED";
 
 export interface IntegrationDoc {
-  _id: ObjectId;
-  userId: ObjectId;
+  id: string;
+  userId: string;
   provider: "google_calendar";
   composioConnectionId: string;
   composioUserId: string;
   status: ConnectionStatus;
   calendarId: string;
   calendarSummary: string;
-  connectedAt: Date;
-  lastCheckedAt: Date;
+  connectedAt: string;
+  lastCheckedAt: string;
 }
 
 export interface EventTypeDoc {
-  _id: ObjectId;
+  id: string;
   slug: string;
   title: string;
   description: string;
@@ -54,13 +52,13 @@ export interface EventTypeDoc {
   customQuestions: CustomQuestion[];
   active: boolean;
   position: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AvailabilityDoc {
-  _id: ObjectId;
-  userId: ObjectId;
+  id: string;
+  userId: string;
   timezone: string;
   weeklyHours: Array<{
     dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -70,15 +68,15 @@ export interface AvailabilityDoc {
     date: string;
     intervals: Array<{ start: string; end: string }>;
   }>;
-  updatedAt: Date;
+  updatedAt: string;
 }
 
 export type BookingStatus = "confirmed" | "cancelled" | "rescheduled";
 
 export interface BookingDoc {
-  _id: ObjectId;
+  id: string;
   eventTypeSlug: string;
-  eventTypeId: ObjectId;
+  eventTypeId: string;
   guestName: string;
   guestEmail: string;
   guestTimezone: string;
@@ -89,7 +87,7 @@ export interface BookingDoc {
   meetLink: string | null;
   manageToken: string;
   status: BookingStatus;
-  rescheduledToBookingId: ObjectId | null;
+  rescheduledToBookingId: string | null;
   createdAt: Date;
   cancelledAt: Date | null;
 }
