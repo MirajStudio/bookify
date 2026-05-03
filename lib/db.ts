@@ -1,13 +1,16 @@
-import { MongoClient, type Db } from "mongodb";
-import { env } from "./env";
+import { createClient } from "@supabase/supabase-js";
 
-let client: MongoClient | null = null;
-let db: Db | null = null;
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-export async function getDb(): Promise<Db> {
-  if (db) return db;
-  client = new MongoClient(env().MONGODB_URI);
-  await client.connect();
-  db = client.db("kalendly");
-  return db;
-}
+const globalForSupabase = globalThis as unknown as {
+  supabase: ReturnType<typeof createClient> | undefined;
+};
+
+export const db =
+  globalForSupabase.supabase ??
+  createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false },
+  });
+
+if (process.env.NODE_ENV !== "production") globalForSupabase.supabase = db;
