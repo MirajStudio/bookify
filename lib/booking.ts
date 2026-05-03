@@ -1,14 +1,17 @@
-import { ObjectId } from "mongodb";
 import { availability, bookings, eventTypes, integrations, users } from "./collections";
 import { computeSlots } from "./availability";
 import { ymdInTz } from "./timezone";
 import { newManageToken } from "./tokens";
 import { createCalendarEvent, deleteCalendarEvent, getBusyTimes } from "./calendar";
 import { env } from "./env";
+import { randomUUID } from "crypto";
 import type { BookingDoc, EventTypeDoc } from "./types";
 
 export class BookingError extends Error {
-  constructor(public readonly code: "slot_taken" | "not_found" | "validation" | "calendar", message: string) {
+  constructor(
+    public readonly code: "slot_taken" | "not_found" | "validation" | "calendar",
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -23,16 +26,16 @@ interface CreateBookingInput {
 }
 
 export async function createBooking(input: CreateBookingInput): Promise<BookingDoc> {
-  const evt = await (await eventTypes()).findOne({ slug: input.slug, active: true });
+  const evt = await eventTypes.findOne({ slug: input.slug, active: true });
   if (!evt) throw new BookingError("not_found", "Event type not found");
 
-  const integration = await (await integrations()).findOne({ provider: "google_calendar", status: "ACTIVE" });
+  const integration = await integrations.findOne({ provider: "google_calendar", status: "ACTIVE" });
   if (!integration) throw new BookingError("calendar", "Calendar not connected");
 
-  const user = await (await users()).findOne({ _id: integration.userId });
+  const user = await users.findOne({ id: integration.userId });
   if (!user) throw new BookingError("not_found", "User not found");
 
-  const avail = await (await availability()).findOne({ userId: user._id });
+  const avail = await availability.findOne({ userId: user.id });
   if (!avail) throw new BookingError("not_found", "Availability not configured");
 
   const startUtc = input.startUtc;
@@ -41,10 +44,16 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
   const windowStart = new Date(startUtc.getTime() - 24 * 60 * 60 * 1000);
   const windowEnd = new Date(endUtc.getTime() + 24 * 60 * 60 * 1000);
 
-  const busy = await getBusyTimes(integration.composioUserId, integration.calendarId, windowStart, windowEnd, avail.timezone);
+  const busy = await getBusyTimes(
+    integration.composioUserId,
+    integration.calendarId,
+    windowStart,
+    windowEnd,
+    avail.timezone,
+  );
 
   const dayKey = ymdInTz(startUtc, avail.timezone);
-  const sameDayCount = await (await bookings()).countDocuments({
+  const sameDayCount = await bookings.countDocuments({
     eventTypeSlug: evt.slug,
     status: "confirmed",
     startUtc: {
@@ -66,19 +75,23 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
   const manageToken = newManageToken();
   const description = buildEventDescription(evt, input.guestName, input.customAnswers, manageToken);
 
-  const created = await createCalendarEvent(integration.composioUserId, integration.calendarId, {
-    summary: `${evt.title} with ${input.guestName}`,
-    description,
-    startUtc,
-    durationMinutes: evt.durationMinutes,
-    attendees: [{ email: input.guestEmail, displayName: input.guestName }],
-    withMeet: evt.location.type === "google_meet",
-  });
+  const created = await createCalendarEvent(
+    integration.composioUserId,
+    integration.calendarId,
+    {
+      summary: `${evt.title} with ${input.guestName}`,
+      description,
+      startUtc,
+      durationMinutes: evt.durationMinutes,
+      attendees: [{ email: input.guestEmail, displayName: input.guestName }],
+      withMeet: evt.location.type === "google_meet",
+    },
+  );
 
   const doc: BookingDoc = {
-    _id: new ObjectId(),
+    id: randomUUID(),
     eventTypeSlug: evt.slug,
-    eventTypeId: evt._id,
+    eventTypeId: evt.id,
     guestName: input.guestName,
     guestEmail: input.guestEmail,
     guestTimezone: input.guestTimezone,
@@ -92,12 +105,16 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
     rescheduledToBookingId: null,
     createdAt: new Date(),
     cancelledAt: null,
-  };
+  } as any;
 
   try {
-    await (await bookings()).insertOne(doc);
+    await bookings.insertOne(doc);
   } catch (err) {
-    await deleteCalendarEvent(integration.composioUserId, integration.calendarId, created.googleEventId).catch(() => {});
+    await deleteCalendarEvent(
+      integration.composioUserId,
+      integration.calendarId,
+      created.googleEventId,
+    ).catch(() => {});
     throw err;
   }
 
@@ -105,24 +122,29 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
 }
 
 export async function cancelBooking(token: string): Promise<BookingDoc> {
-  const col = await bookings();
-  const booking = await col.findOne({ manageToken: token });
+  const booking = await bookings.findOne({ manageToken: token });
   if (!booking) throw new BookingError("not_found", "Booking not found");
   if (booking.status !== "confirmed") throw new BookingError("not_found", "Booking not active");
 
-  await col.updateOne({ _id: booking._id }, { $set: { status: "cancelled", cancelledAt: new Date() } });
+  await bookings.updateOne(
+    { manageToken: token },
+    { status: "cancelled", cancelledAt: new Date() } as any,
+  );
 
-  const integration = await (await integrations()).findOne({ provider: "google_calendar", status: "ACTIVE" });
+  const integration = await integrations.findOne({ provider: "google_calendar", status: "ACTIVE" });
   if (integration) {
-    await deleteCalendarEvent(integration.composioUserId, integration.calendarId, booking.googleEventId).catch(() => {});
+    await deleteCalendarEvent(
+      integration.composioUserId,
+      integration.calendarId,
+      booking.googleEventId,
+    ).catch(() => {});
   }
 
   return { ...booking, status: "cancelled", cancelledAt: new Date() };
 }
 
 export async function rescheduleBooking(token: string, newStartUtc: Date): Promise<BookingDoc> {
-  const col = await bookings();
-  const original = await col.findOne({ manageToken: token });
+  const original = await bookings.findOne({ manageToken: token });
   if (!original) throw new BookingError("not_found", "Booking not found");
   if (original.status !== "confirmed") throw new BookingError("not_found", "Booking not active");
 
@@ -135,14 +157,18 @@ export async function rescheduleBooking(token: string, newStartUtc: Date): Promi
     customAnswers: original.customAnswers,
   });
 
-  await col.updateOne(
-    { _id: original._id },
-    { $set: { status: "rescheduled", rescheduledToBookingId: newBooking._id, cancelledAt: new Date() } },
+  await bookings.updateOne(
+    { manageToken: token },
+    { status: "rescheduled", rescheduledToBookingId: newBooking.id, cancelledAt: new Date() } as any,
   );
 
-  const integration = await (await integrations()).findOne({ provider: "google_calendar", status: "ACTIVE" });
+  const integration = await integrations.findOne({ provider: "google_calendar", status: "ACTIVE" });
   if (integration) {
-    await deleteCalendarEvent(integration.composioUserId, integration.calendarId, original.googleEventId).catch(() => {});
+    await deleteCalendarEvent(
+      integration.composioUserId,
+      integration.calendarId,
+      original.googleEventId,
+    ).catch(() => {});
   }
 
   return newBooking;
@@ -165,9 +191,7 @@ function buildEventDescription(
   if (evt.customQuestions.length > 0) {
     for (const q of evt.customQuestions) {
       const value = answers[q.id];
-      if (value) {
-        lines.push(`${q.label}: ${value}`);
-      }
+      if (value) lines.push(`${q.label}: ${value}`);
     }
     lines.push("");
   }
