@@ -1,15 +1,14 @@
 export const dynamic = "force-dynamic";
 
-import { ObjectId } from "mongodb";
 import { availability, users } from "@/lib/collections";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { AvailabilityEditor } from "@/components/admin/AvailabilityEditor";
 
 export default async function AvailabilityPage() {
   const session = await requireAdmin();
-  const user = await (await users()).findOne({ _id: new ObjectId(session.user.id) });
+  const user = await users.findOne({ id: session.user.id });
   if (!user) throw new Error("User missing");
-  const doc = await (await availability()).findOne({ userId: user._id });
+  const doc = await availability.findOne({ userId: user.id });
   const initial = doc
     ? { timezone: doc.timezone, weeklyHours: doc.weeklyHours, dateOverrides: doc.dateOverrides }
     : {
@@ -29,8 +28,8 @@ export default async function AvailabilityPage() {
         </p>
         <h1 className="text-[28px] leading-tight tracking-[-0.02em]">Availability</h1>
         <p className="max-w-2xl text-[13px] text-ink-soft">
-          Set the windows when you can take meetings. Date overrides let you block off
-          specific days or open up extra hours.
+          Set the windows when you can take meetings. Date overrides let you block off specific days
+          or open up extra hours.
         </p>
       </header>
       <AvailabilityEditor initial={initial} />
