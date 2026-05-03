@@ -1,12 +1,14 @@
 export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
-import { eventTypes, integrations, availability, bookings } from "@/lib/collections";
+import { eventTypes, integrations, availability } from "@/lib/collections";
 import { computeSlots } from "@/lib/availability";
 import { getBusyTimes } from "@/lib/calendar";
 import { ymdInTz } from "@/lib/timezone";
+import { db } from "@/lib/db";
 import { BookingShell } from "@/components/public/BookingShell";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import type { BookingDoc } from "@/lib/types";
 
 export const revalidate = 30;
 
@@ -19,21 +21,21 @@ export default async function BookingPage({
 }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const evt = await (await eventTypes()).findOne({ slug, active: true });
+
+  const evt = await eventTypes.findOne({ slug, active: true });
   if (!evt) notFound();
 
-  const integ = await (await integrations()).findOne({
-    provider: "google_calendar",
-    status: "ACTIVE",
-  });
-  const avail = integ ? await (await availability()).findOne({ userId: integ.userId }) : null;
+  const integ = await integrations.findOne({ provider: "google_calendar", status: "ACTIVE" });
+  const avail = integ ? await availability.findOne({ userId: integ.userId }) : null;
 
   let slots: { startUtc: string; endUtc: string }[] = [];
   let unavailable = false;
+
   if (integ && avail) {
     try {
       const now = new Date();
       const horizon = new Date(now.getTime() + evt.rules.maxAdvanceDays * 24 * 3600_000);
+
       const busy = await getBusyTimes(
         integ.composioUserId,
         integ.calendarId,
@@ -41,20 +43,23 @@ export default async function BookingPage({
         horizon,
         avail.timezone,
       );
+
       const counts: Record<string, number> = {};
       if (evt.rules.maxBookingsPerDay !== null) {
-        const list = await (await bookings())
-          .find({
-            eventTypeSlug: slug,
-            status: "confirmed",
-            startUtc: { $gte: now, $lt: horizon },
-          })
-          .toArray();
-        for (const b of list) {
-          const k = ymdInTz(b.startUtc, avail.timezone);
+        const { data } = await db
+          .from("bookings")
+          .select("*")
+          .eq("event_type_slug", slug)
+          .eq("status", "confirmed")
+          .gte("start_utc", now.toISOString())
+          .lt("start_utc", horizon.toISOString());
+
+        for (const b of (data ?? []) as BookingDoc[]) {
+          const k = ymdInTz(new Date(b.startUtc), avail.timezone);
           counts[k] = (counts[k] ?? 0) + 1;
         }
       }
+
       slots = computeSlots({
         eventType: evt,
         availability: avail,
@@ -81,7 +86,6 @@ export default async function BookingPage({
       <div className="mb-10 flex items-center justify-end">
         <ThemeToggle />
       </div>
-
       {sp.reschedule && (
         <div className="mb-8 flex items-center gap-2.5 rounded-lg border border-border bg-primary-tint px-3.5 py-2.5 text-[13px] text-ink">
           <span className="relative inline-flex h-1.5 w-1.5">
@@ -91,7 +95,6 @@ export default async function BookingPage({
           Pick a new time below to reschedule your booking.
         </div>
       )}
-
       <BookingShell
         slug={slug}
         title={evt.title}
